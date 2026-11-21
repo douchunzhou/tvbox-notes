@@ -32,7 +32,8 @@
 | 2026-11-14 | 新增 §0 硬性约束（新增功能一律放外置盘 / 能脚本+cron 就不常驻 / 文档结构规范）；工作区重组：openclash 旧文档移入 docs/openclash-legacy，补 README.md 与 docs/README.md | DSH |
 | 2026-11-15 | 新增 §17：Home Assistant Container 上线（:8123，368 MB 常驻，每日 03:30 备份）；记录 IPv6 组播 EPERM 的已知限制；新增 §17 仪表盘（/mushroom、/plan）；禁用云鲸+美的集成 | DSH |
 | 2026-11-16 | 记忆整理：新增 `oect-index`/`oect-services`/`oect-ha` 三条项目记忆并互相交叉引用；`docs/README.md` 重写为「文档 + 记忆」双索引 | DSH |
-| 2026-11-21 | §16 tvbox-hub 升级：新增 `mirrors.txt` 镜像机制 + `/tvbox/inliang.json`（Inliang 126 站点/10 直播分组）；sync.py 增加 spider 本地化（jar 下到本机并改写为内网地址）；状态页加镜像区块 | DSH |
+| 2026-11-21 | §16 tvbox-hub 升级：新增 `mirrors.txt` 镜像机制 + `/tvbox/inliang.json`（Inliang 126 站点/10 直播分组）；sync.py 增加 spider 本地化（jar 下到本机并改写为内网地址）；状态页加镜像区块；新增 `!http-only` 补源（合并 38 站点）与每日验活 | DSH |
+| 2026-11-21 | 新增 §18：工作区纳入 Git 管理并推送到 GitHub（`douchunzhou/tvbox-notes`，公开）；脱敏 aria2/Clash 密钥与磁盘 UUID，`.gitignore` 排除凭据快照、原始采集、户型图与大文件 | DSH |
 
 ---
 
@@ -793,6 +794,36 @@ sh backup.sh                                     # 手动备份
 ```sh
 cd /mnt/data_sda1/services/homeassistant && docker compose down   # config/ 保留
 ```
+
+---
+
+## 18. 版本管理 / GitHub 备份（2026-11-21 起）
+
+| 项 | 值 |
+|---|---|
+| 仓库 | <https://github.com/douchunzhou/tvbox-notes>（**公开**） |
+| 本地 | `E:\04.OECT`（git 已初始化，分支 `main`） |
+| 收录范围 | **只收手册 / 脚本 / 文档**：`AGENTS.md`、`docs/`、`services/` |
+| 明确排除 | `backups/`（含节点明文凭据）、`docs/oect/*/raw/`（MAC/UUID/包清单）、`services/homeassistant/floorplan/`（自家户型图）、`downloads/`（安装包） |
+| 脱敏 | aria2 RPC 密钥、Clash API 密钥、磁盘 UUID 均已替换为占位说明 |
+
+### 更新流程
+
+```bash
+cd /e/04.OECT
+git add -A
+git commit -m "说明这次改了什么"
+git push
+```
+
+凭据走 Windows 凭据管理器里已存的 GitHub 账号（`douchunzhou`），无需重复登录。
+
+### 注意
+
+- **历史是永久的**：一旦推上去，即使之后删除文件，commit 历史里仍可翻到。
+  所以`backups/` 这类含凭据的内容**永远不要**加进来；要备份请另建私有仓库。
+- 仓库名虽然是 `tvbox-notes`，但内容是整台 oect 的运维手册。
+
 
 ---
 
