@@ -296,7 +296,9 @@ def human_size(n):
 
 
 def write_status(merged, records, out_bytes, mirrors=None):
-    """生成中文状态页 status.html"""
+    """生成中文状态页 status.html（霓虹深色 / 给非技术用户看）"""
+    from string import Template
+
     now = time.strftime("%Y-%m-%d %H:%M:%S")
     sites = len(merged.get("sites") or [])
     lives = len(merged.get("lives") or [])
@@ -304,21 +306,50 @@ def write_status(merged, records, out_bytes, mirrors=None):
     ok_n = sum(1 for r in records if r["ok"])
     bad_n = len(records) - ok_n
 
-    rows = []
+    if ok_n and not bad_n:
+        health_cls, health_txt = "ok", "运行正常"
+    elif ok_n:
+        health_cls, health_txt = "warn", "部分源异常"
+    else:
+        health_cls, health_txt = "bad", "同步失败"
+
+    # 上游源列表
+    src_rows = []
     for r in records:
-        url = html.escape(r["url"])
-        short = html.escape(r["url"].split("//")[-1][:70])
+        short = html.escape(r["url"].split("//")[-1][:64])
+        tag = '<span class="tag">补源</span> ' if r.get("http_only") else ""
         if r["ok"]:
-            badge = '<span class="ok">成功</span>'
-            detail = "%d 站点" % r["sites"]
+            state, detail = '<span class="st ok">● 成功</span>', "%d 个站点" % r["sites"]
         else:
-            badge = '<span class="bad">失败</span>'
-            detail = html.escape(r["err"][:80])
-        if r.get("http_only"):
-            short = "补源 · " + short
-        rows.append(
-            '<tr><td>%s</td><td class="mono">%s</td><td>%s</td><td>%s</td></tr>'
-            % (badge, short, detail, '<a href="%s" target="_blank">打开</a>' % url)
+            state = '<span class="st bad">● 失败</span>'
+            detail = '<span class="err">%s</span>' % html.escape(r["err"][:60])
+        src_rows.append(
+            '<li><div class="src-head">%s%s</div><div class="src-meta">%s · %s</div>'
+            '<a class="src-link" href="%s" target="_blank" rel="noopener">查看</a></li>'
+            % (state, tag, short, detail, html.escape(r["url"]))
+        )
+
+    # 镜像
+    mirror_html = ""
+    if mirrors:
+        rows = []
+        for m in mirrors:
+            if m["ok"]:
+                state = '<span class="st ok">● 成功</span>'
+                detail = "%d 个站点 · %.0f KB" % (m["sites"], m["size"] / 1024.0)
+            else:
+                state = '<span class="st bad">● 失败</span>'
+                detail = '<span class="err">%s</span>' % html.escape(m["err"][:60])
+            rows.append(
+                '<li><div class="src-head">%s</div><div class="src-meta">%s · %s</div>'
+                '<a class="src-link" href="%s" target="_blank" rel="noopener">查看</a></li>'
+                % (state, html.escape(m["name"]), detail, html.escape(m["name"]))
+            )
+        mirror_html = (
+            '<section class="card">'
+            '<h2><span class="num">④</span>备选接口（独立文件，不参与合并）</h2>'
+            '<p class="hint">想看电视原版直播分组时用它，站点少但直播分组更全。</p>'
+            '<ul class="src-list">%s</ul></section>' % "".join(rows)
         )
 
     tail = []
@@ -329,114 +360,300 @@ def write_status(merged, records, out_bytes, mirrors=None):
     except Exception:
         pass
 
-    mirror_rows = []
-    for m in (mirrors or []):
-        if m["ok"]:
-            badge = '<span class="ok">成功</span>'
-            detail = "%d 站点 · %.0f KB" % (m["sites"], m["size"] / 1024.0)
-        else:
-            badge = '<span class="bad">失败</span>'
-            detail = html.escape(m["err"][:80])
-        mirror_rows.append(
-            '<tr><td>%s</td><td class="mono">%s</td><td>%s</td><td>%s</td></tr>'
-            % (badge, html.escape(m["name"]), detail,
-               '<a href="%s" target="_blank">打开</a>' % html.escape(m["name"]))
-        )
+    dsh = merged.get("dsh") or {}
+    added = dsh.get("http_only_added") or 0
+    dropped = dsh.get("dropped_dead") or []
+    note = ""
+    if added:
+        note = '<p class="hint">本轮从补源新增 <b>%d</b> 个站点' % added
+        if dropped:
+            note += '，剔除失效 <b>%d</b> 个' % len(dropped)
+        note += '。</p>'
 
-    spider = (merged.get("spider") or "").split(";")[0]
-
-    page = """<!DOCTYPE html>
+    tpl = Template(r'''<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="refresh" content="300">
-<title>TVBox 接口中转站 · 状态</title>
+<title>TVBox 接口中转站 · oect</title>
 <style>
-  :root {{ color-scheme: light dark; }}
-  * {{ box-sizing: border-box; }}
-  body {{ margin:0; padding:24px 16px 48px; font:15px/1.6 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
-         background:#0f1115; color:#e6e8ec; }}
-  .wrap {{ max-width: 980px; margin:0 auto; }}
-  h1 {{ font-size:20px; margin:0 0 4px; }}
-  .sub {{ color:#8b94a3; font-size:13px; margin-bottom:20px; }}
-  .card {{ background:#171a21; border:1px solid #232833; border-radius:10px; padding:16px 18px; margin-bottom:16px; }}
-  .grid {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }}
-  .k {{ color:#8b94a3; font-size:12px; }}
-  .v {{ font-size:22px; font-weight:600; margin-top:2px; }}
-  .url {{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }}
-  code {{ background:#0b0d11; border:1px solid #232833; border-radius:6px; padding:6px 10px; font-size:13px; word-break:break-all; }}
-  table {{ width:100%; border-collapse:collapse; font-size:13px; }}
-  th,td {{ text-align:left; padding:8px 6px; border-bottom:1px solid #232833; vertical-align:top; }}
-  th {{ color:#8b94a3; font-weight:500; font-size:12px; }}
-  .mono {{ font-family:ui-monospace,Consolas,monospace; font-size:12px; color:#a8b1c0; word-break:break-all; }}
-  .ok {{ color:#39d353; }} .bad {{ color:#f85149; }}
-  pre {{ background:#0b0d11; border:1px solid #232833; border-radius:8px; padding:12px; overflow:auto;
-         font-size:12px; color:#a8b1c0; margin:0; }}
-  a {{ color:#58a6ff; text-decoration:none; }}
-  button {{ background:#238636; color:#fff; border:0; border-radius:6px; padding:6px 12px; font-size:13px; cursor:pointer; }}
-  .tip {{ color:#8b94a3; font-size:12px; margin-top:8px; }}
+:root{
+  --bg:#05070c; --panel:rgba(13,18,27,.82); --line:rgba(56,189,248,.16);
+  --txt:#e6edf7; --dim:#8b98ad; --cyan:#22d3ee; --violet:#8b5cf6;
+  --ok:#34d399; --warn:#fbbf24; --bad:#fb7185;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--txt); min-height:100vh;
+  font:15px/1.65 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  padding:28px 16px 64px; overflow-x:hidden;
+}
+body::before{
+  content:""; position:fixed; inset:0; z-index:-2;
+  background-image:linear-gradient(rgba(56,189,248,.055) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(56,189,248,.055) 1px,transparent 1px);
+  background-size:44px 44px;
+  mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000 40%,transparent 100%);
+  -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000 40%,transparent 100%);
+}
+body::after{
+  content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(600px 320px at 12% -8%,rgba(34,211,238,.16),transparent 70%),
+    radial-gradient(720px 420px at 88% 4%,rgba(139,92,246,.16),transparent 72%);
+}
+.wrap{max-width:920px;margin:0 auto}
+
+/* ---------- 头部 ---------- */
+.hero{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;margin-bottom:22px}
+.brand{display:flex;gap:14px;align-items:center}
+.logo{
+  width:46px;height:46px;border-radius:12px;flex:none;
+  display:grid;place-items:center;font-weight:800;letter-spacing:.5px;color:#04121a;
+  background:linear-gradient(135deg,var(--cyan),var(--violet));
+  box-shadow:0 0 22px rgba(34,211,238,.45);
+}
+h1{font-size:20px;margin:0;letter-spacing:.3px}
+.sub{color:var(--dim);font-size:13px;margin:4px 0 0;max-width:560px}
+.pill{
+  display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;
+  font-size:13px;font-weight:600;border:1px solid var(--line);background:var(--panel);
+}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 0 0 currentColor}
+.pill.ok{color:var(--ok)} .pill.warn{color:var(--warn)} .pill.bad{color:var(--bad)}
+.pill.ok .dot{animation:pulse 2.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(52,211,153,.55)}70%{box-shadow:0 0 0 12px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+
+/* ---------- 数字卡片 ---------- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:22px}
+.stat{
+  position:relative;padding:16px 16px 14px;border-radius:14px;background:var(--panel);
+  border:1px solid var(--line);overflow:hidden;
+}
+.stat::after{
+  content:"";position:absolute;left:0;top:0;height:2px;width:100%;
+  background:linear-gradient(90deg,var(--cyan),var(--violet));opacity:.85;
+}
+.stat .k{color:var(--dim);font-size:12px;letter-spacing:.4px}
+.stat .v{
+  font:700 30px/1.15 ui-monospace,Consolas,"Cascadia Mono",monospace;
+  font-variant-numeric:tabular-nums;
+  background:linear-gradient(180deg,#fff,#9fd8ff);-webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.stat .u{color:var(--dim);font-size:12px;margin-left:4px}
+
+/* ---------- 卡片 ---------- */
+.card{
+  background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:18px 18px 16px;margin-bottom:16px;
+  box-shadow:0 18px 40px -28px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.04);
+}
+.card h2{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:8px;letter-spacing:.3px}
+.num{
+  display:inline-grid;place-items:center;width:22px;height:22px;border-radius:7px;font-size:12px;
+  background:linear-gradient(135deg,rgba(34,211,238,.22),rgba(139,92,246,.22));
+  border:1px solid var(--line);color:var(--cyan);
+}
+.hint{color:var(--dim);font-size:13px;margin:10px 0 0}
+
+/* ---------- 地址 ---------- */
+.addr-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:6px}
+.addr-row + .addr-row{margin-top:14px}
+.badge{
+  font-size:11px;font-weight:700;letter-spacing:.4px;padding:3px 9px;border-radius:999px;
+  color:#04121a;background:linear-gradient(135deg,var(--cyan),#7dd3fc);
+}
+.badge.alt{background:linear-gradient(135deg,#a78bfa,#c4b5fd)}
+code{
+  flex:1 1 320px;min-width:0;padding:11px 14px;border-radius:10px;
+  background:#070b12;border:1px solid var(--line);
+  font:13px/1.5 ui-monospace,Consolas,monospace;color:#a5f3fc;
+  word-break:break-all;
+}
+button{
+  padding:10px 16px;border-radius:10px;border:1px solid rgba(34,211,238,.45);cursor:pointer;
+  background:linear-gradient(135deg,rgba(34,211,238,.16),rgba(139,92,246,.16));
+  color:#c8f4ff;font-size:13px;font-weight:600;transition:.18s;
+}
+button:hover{border-color:var(--cyan);box-shadow:0 0 18px rgba(34,211,238,.28)}
+button:active{transform:translateY(1px)}
+.link{color:var(--cyan);font-size:12px;text-decoration:none;opacity:.9}
+.link:hover{opacity:1;text-decoration:underline}
+
+/* ---------- 折叠区 ---------- */
+details.card{padding:0}
+summary{
+  cursor:pointer;padding:16px 18px;font-size:14px;font-weight:600;list-style:none;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"＋";color:var(--cyan);font-size:16px}
+details[open] summary::after{content:"－"}
+details[open] summary{border-bottom:1px solid var(--line)}
+.details-body{padding:16px 18px}
+
+.steps{margin:0;padding-left:0;list-style:none;counter-reset:s}
+.steps li{
+  counter-increment:s;position:relative;padding:10px 0 10px 40px;
+  border-bottom:1px dashed rgba(148,163,184,.16);
+}
+.steps li:last-child{border-bottom:0}
+.steps li::before{
+  content:counter(s);position:absolute;left:0;top:10px;
+  width:26px;height:26px;border-radius:9px;display:grid;place-items:center;
+  font-size:13px;font-weight:700;color:var(--cyan);
+  background:rgba(34,211,238,.12);border:1px solid var(--line);
+}
+.steps b{display:block;font-size:14px}
+.steps span{color:var(--dim);font-size:13px}
+.faq{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.faq p{margin:8px 0;font-size:13px;color:#c3cedd}
+.faq b{color:#e8f4ff}
+
+/* ---------- 源列表 ---------- */
+.src-list{list-style:none;margin:0;padding:0}
+.src-list li{
+  display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;
+  padding:10px 0;border-bottom:1px dashed rgba(148,163,184,.14);
+}
+.src-list li:last-child{border-bottom:0}
+.src-head{flex:1 1 100%;display:flex;gap:8px;align-items:center;font-size:13px;color:#c3cedd;word-break:break-all}
+.src-meta{color:var(--dim);font-size:12px;flex:1 1 auto}
+.src-link{color:var(--cyan);font-size:12px;text-decoration:none}
+.st{font-weight:700;font-size:12px;flex:none}
+.st.ok{color:var(--ok)} .st.bad{color:var(--bad)}
+.err{color:var(--bad)}
+.tag{
+  font-size:10px;padding:1px 6px;border-radius:5px;color:#c4b5fd;
+  border:1px solid rgba(167,139,250,.4);background:rgba(139,92,246,.12);
+}
+
+pre{
+  margin:0;padding:14px;border-radius:10px;background:#070b12;border:1px solid var(--line);
+  font:12px/1.7 ui-monospace,Consolas,monospace;color:#93a4bb;overflow:auto;max-height:280px;
+}
+footer{text-align:center;color:#5d6a7d;font-size:12px;margin-top:26px}
+@media (max-width:520px){
+  body{padding:20px 12px 48px}
+  .stat .v{font-size:26px}
+  code{flex:1 1 100%}
+}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>TVBox 接口中转站</h1>
-  <div class="sub">oect · 本页每 5 分钟自动刷新 · 生成于 {now}</div>
+<main class="wrap">
 
-  <div class="card">
-    <div class="k">电视里填这个地址（配置地址 / 接口）</div>
-    <div class="url" style="margin-top:8px">
-      <code id="u">{public}</code>
-      <button onclick="navigator.clipboard.writeText('{public}');this.textContent='已复制';setTimeout(()=>this.textContent='复制',1500)">复制</button>
-      <a href="config.json" target="_blank">直接查看 JSON</a>
+  <header class="hero">
+    <div class="brand">
+      <div class="logo">TV</div>
+      <div>
+        <h1>TVBox 接口中转站</h1>
+        <p class="sub">这是一份给电视用的「频道清单」，把它填进电视 App，就能看到最新的片源。</p>
+      </div>
     </div>
-  </div>
+    <div class="pill $health_cls"><span class="dot"></span>$health_txt</div>
+  </header>
 
-  <div class="card grid">
-    <div><div class="k">上次同步</div><div class="v" style="font-size:16px">{now}</div></div>
-    <div><div class="k">成功 / 失败源</div><div class="v"><span class="ok">{ok_n}</span> / <span class="bad">{bad_n}</span></div></div>
-    <div><div class="k">站点</div><div class="v">{sites}</div></div>
-    <div><div class="k">直播源</div><div class="v">{lives}</div></div>
-    <div><div class="k">解析</div><div class="v">{parses}</div></div>
-    <div><div class="k">接口大小</div><div class="v" style="font-size:16px">{size}</div></div>
-  </div>
+  <section class="stats">
+    <div class="stat"><div class="k">片源站点</div><div class="v">$sites</div><div class="u">个</div></div>
+    <div class="stat"><div class="k">直播分组</div><div class="v">$lives</div><div class="u">组</div></div>
+    <div class="stat"><div class="k">解析通道</div><div class="v">$parses</div><div class="u">条</div></div>
+    <div class="stat"><div class="k">上游源</div><div class="v">$ok_n<span class="u">/$total_src</span></div><div class="u">成功</div></div>
+  </section>
 
-  <div class="card">
-    <div class="k" style="margin-bottom:8px">上游源</div>
-    <table>
-      <tr><th>状态</th><th>地址</th><th>结果</th><th></th></tr>
-      {rows}
-    </table>
-    <div class="tip">spider：<span class="mono">{spider}</span></div>
-  </div>
+  <section class="card">
+    <h2><span class="num">1</span>电视里填这个地址</h2>
+    <div class="addr-row">
+      <span class="badge">主用</span>
+      <code id="u1">$public</code>
+      <button data-copy="u1">复制</button>
+      <a class="link" href="config.json" target="_blank" rel="noopener">看原始数据</a>
+    </div>
+    <p class="hint">站点最多（$sites 个），日常用它就行。</p>
 
-  <div class="card">
-    <div class="k" style="margin-bottom:8px">镜像接口（独立文件，不参与上面合并）</div>
-    <table>
-      <tr><th>状态</th><th>文件</th><th>结果</th><th></th></tr>
-      {mirror_rows}
-    </table>
-    <div class="tip">来源见 mirrors.txt；镜像失败时保留上一份文件，电视端不会白屏。</div>
-  </div>
+    <div class="addr-row">
+      <span class="badge alt">备选</span>
+      <code id="u2">$public_mirror</code>
+      <button data-copy="u2">复制</button>
+    </div>
+    <p class="hint">想看原版电视直播分组时用这个（$mirror_sites 个站点，直播源带测速排序）。</p>
+  </section>
 
-  <div class="card">
-    <div class="k" style="margin-bottom:8px">最近同步日志</div>
-    <pre>{tail}</pre>
-    <div class="tip">每天 04:10 自动同步。手动同步：<code>cd /mnt/data_sda1/services/tvbox &amp;&amp; python3 sync.py</code></div>
-  </div>
-</div>
+  <details class="card">
+    <summary>不知道在哪填？点开看 3 步</summary>
+    <div class="details-body">
+      <ol class="steps">
+        <li><b>打开电视上的 App</b><span>TVBox / 影视仓 / OK影视，装哪个都行</span></li>
+        <li><b>找到「配置地址」或「接口」</b><span>通常在「设置」里，有的在首页右上角</span></li>
+        <li><b>粘贴上面的地址 → 确定 → 重启 App</b><span>第一次加载要十几秒，属正常</span></li>
+      </ol>
+      <div class="faq">
+        <p><b>打不开 / 一直转圈？</b>先看本页顶部是不是「运行正常」，再确认电视和 oect 连的是同一个 WiFi。</p>
+        <p><b>能进但播放失败？</b>多半是那个站点自己挂了，换个站点试。</p>
+        <p><b>多久更新？</b>每天 04:10 自动同步一次，这一页每 5 分钟自动刷新。</p>
+      </div>
+    </div>
+  </details>
+
+  <section class="card">
+    <h2><span class="num">2</span>今天同步的情况</h2>
+    $note
+    <ul class="src-list">$src_rows</ul>
+  </section>
+
+  $mirror_html
+
+  <details class="card">
+    <summary>同步日志（最近 12 行，排错用）</summary>
+    <div class="details-body"><pre>$tail</pre></div>
+  </details>
+
+  <footer>
+    oect · 生成于 $now · 每 5 分钟自动刷新 · 接口大小 $size
+  </footer>
+</main>
+<script>
+document.querySelectorAll('button[data-copy]').forEach(function(b){
+  b.addEventListener('click',function(){
+    var el=document.getElementById(b.dataset.copy);
+    var txt=el.textContent.trim();
+    var done=function(){var t=b.textContent;b.textContent='已复制 ✓';setTimeout(function(){b.textContent=t},1500);};
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(done,function(){fallback(txt,done)});
+    }else{fallback(txt,done)}
+    function fallback(v,cb){
+      var ta=document.createElement('textarea');ta.value=v;ta.style.position='fixed';ta.style.opacity='0';
+      document.body.appendChild(ta);ta.select();try{document.execCommand('copy')}catch(e){}
+      document.body.removeChild(ta);cb();
+    }
+  });
+});
+</script>
 </body>
 </html>
-""".format(now=now, public=PUBLIC_URL, ok_n=ok_n, bad_n=bad_n, sites=sites, lives=lives,
-           parses=parses, size=human_size(out_bytes), rows="\n      ".join(rows) or "<tr><td colspan=4>（无）</td></tr>",
-           spider=html.escape(spider or "（未设置）"), tail="\n".join(tail) or "（暂无日志）",
-           mirror_rows="\n      ".join(mirror_rows) or "<tr><td colspan=4>（未配置镜像，见 mirrors.txt）</td></tr>")
+''')
+
+    page = tpl.substitute(
+        health_cls=health_cls, health_txt=health_txt,
+        sites=sites, lives=lives, parses=parses,
+        ok_n=ok_n, total_src=len(records),
+        public=PUBLIC_URL,
+        public_mirror=PUBLIC_BASE + "inliang.json",
+        mirror_sites=next((m["sites"] for m in (mirrors or []) if m["ok"]), 0),
+        src_rows="".join(src_rows) or '<li><div class="src-meta">（没有配置上游源）</div></li>',
+        mirror_html=mirror_html,
+        note=note,
+        tail="\n".join(tail) or "（暂无日志）",
+        now=now, size=human_size(out_bytes),
+    )
 
     tmp = STATUS + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(page)
     os.replace(tmp, STATUS)
-    log("状态页已更新: %s" % STATUS)
+    log("状态页已更新: %s (%d KB)" % (STATUS, len(page.encode("utf-8")) // 1024))
 
 
 def main():

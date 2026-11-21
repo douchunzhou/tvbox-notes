@@ -711,7 +711,7 @@ docker logs --tail 30 nanobot-gateway
 |---|---|
 | 对外地址（主，合并） | `http://192.168.31.2/tvbox/config.json` |
 | 对外地址（镜像，直播强） | `http://192.168.31.2/tvbox/inliang.json`（**2026-11-21 新增**） |
-| 状态页 | `http://192.168.31.2/tvbox/status.html`（中文，5 分钟自刷新；每次 sync 自动重新生成；含镜像区块） |
+| 状态页 | `http://192.168.31.2/tvbox/status.html`（**2026-11-21 改版**：霓虹深色仪表盘 + 大数字卡片 + 「电视里填哪个地址」置顶 + 小白 3 步教程折叠区；5 分钟自刷新；每次 sync 重新生成） |
 | 实际目录 | `/mnt/data_sda1/services/tvbox/`（`/www/tvbox` 是软链，uhttpd 跟随软链正常） |
 | 上游列表 | `sources.txt`（一行一个 URL，支持 `#` 注释）；当前主源 = `Lightconer/tvbox-ysc-config` 的 `output/单仓聚合.json`（GitHub Actions 每日更新的聚合仓，内部已合 10 家常见单仓） |
 | 当前产出 | 主：**592 站点 / 30 直播 / 85 解析**（2026-11-21：主源 554 + Inliang 补源 38）；spider 仍指向 `ss1.eisite.cn` 的 jar（伪装 .png），实测 200 |
