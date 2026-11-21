@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OECT 代理分组方案审查报告</title>
+    <style>
+        :root{--bg:#0d1117;--card:#161b22;--border:#30363d;--text:#e6edf3;--muted:#8b949e;--accent:#58a6ff;--green:#3fb950;--red:#f85149;--yellow:#d29922;--code-bg:#1c2128}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans SC',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;padding:20px}
+        .c{max-width:920px;margin:0 auto}
+        h1{font-size:26px;margin-bottom:6px;background:linear-gradient(135deg,var(--red),var(--yellow));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .sub{color:var(--muted);margin-bottom:28px;font-size:14px}
+        h2{font-size:19px;margin:28px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border);color:var(--accent)}
+        .card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px;margin:12px 0}
+        .card.r{border-left:4px solid var(--red)}.card.y{border-left:4px solid var(--yellow)}.card.g{border-left:4px solid var(--green)}.card.b{border-left:4px solid var(--accent)}
+        .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;margin-right:6px}
+        .badge.r{background:rgba(248,81,73,.15);color:var(--red)}.badge.y{background:rgba(210,153,34,.15);color:var(--yellow)}.badge.g{background:rgba(63,185,80,.15);color:var(--green)}.badge.b{background:rgba(88,166,255,.15);color:var(--accent)}
+        pre{background:var(--code-bg);border:1px solid var(--border);border-radius:6px;padding:14px;overflow-x:auto;font-size:13px;line-height:1.5;margin:8px 0}
+        code{font-family:'JetBrains Mono','Fira Code',monospace}
+        .ic{background:var(--code-bg);padding:2px 6px;border-radius:4px;font-size:13px}
+        table{width:100%;border-collapse:collapse;margin:8px 0}
+        th,td{padding:9px 12px;border:1px solid var(--border);text-align:left;font-size:13px}
+        th{background:var(--code-bg);font-weight:600;color:var(--accent)}
+        .src{color:var(--muted);font-size:12px;margin-top:6px}
+        .src a{color:var(--accent)}
+        .sg{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0}
+        .sb{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center}
+        .sb .n{font-size:28px;font-weight:700}.sb .l{font-size:13px;color:var(--muted);margin-top:4px}
+        .sb.pass .n{color:var(--green)}.sb.warn .n{color:var(--yellow)}.sb.fail .n{color:var(--red)}
+        footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:13px;text-align:center}
+    </style>
+</head>
+<body>
+<div class="c">
+
+<h1>🔍 代理分组方案审查报告</h1>
+<p class="sub">Mihomo 官方 Wiki + OpenClash 源码 + 网络搜索交叉验证 · 2026-08-30</p>
+
+<div class="sg">
+    <div class="sb pass"><div class="n">10</div><div class="l">✅ 正确</div></div>
+    <div class="sb warn"><div class="n">3</div><div class="l">⚠️ 需修正</div></div>
+    <div class="sb fail"><div class="n">0</div><div class="l">❌ 致命错误</div></div>
+</div>
+
+<div class="card g">
+    <span class="badge g">结论</span> <strong>方案整体可行，无致命错误，但有 3 个需要修正的地方。</strong>最大的坑是 Mihomo 的 health-check URL 只测试 <code class="ic">proxies</code> 字段中的节点，不会测试 <code class="ic">use</code>（proxy-providers）中的节点。
+</div>
+
+<!-- ==================== 审查项 ==================== -->
+<h2>一、逐项审查（13 项）</h2>
+
+<div class="card g">
+    <strong>✅ 1. url-test 支持 proxies 字段？</strong> — <strong>正确</strong><br>
+    <code>proxies</code> 是通用字段，适用于所有分组类型。Mihomo 官方 url-test 示例明确包含 <code>proxies</code>。
+    <div class="src">来源：<a href="https://wiki.metacubex.one/config/proxy-groups/url-test/">Mihomo Wiki - url-test</a></div>
+</div>
+
+<div class="card g">
+    <strong>✅ 2. fallback 支持 proxies 字段？</strong> — <strong>正确</strong><br>
+    <div class="src">来源：<a href="https://wiki.metacubex.one/config/proxy-groups/fallback/">Mihomo Wiki - fallback</a></div>
+</div>
+
+<div class="card g">
+    <strong>✅ 3. lazy: true 在 url-test 中生效？</strong> — <strong>正确</strong><br>
+    <code>lazy</code> 是通用字段，默认 true。含义："未选择到当前策略组时，不进行测试"。
+    <div class="src">来源：<a href="https://wiki.metacubex.one/config/proxy-groups/">Mihomo Wiki - 通用字段</a></div>
+</div>
+
+<div class="card g">
+    <strong>✅ 4. include-all: true 与 url-test 兼容？</strong> — <strong>正确</strong><br>
+    <code>include-all</code> 引入所有代理（含 proxy-providers），但不包括其他代理组。
+    <div class="src">来源：<a href="https://wiki.metacubex.one/config/proxy-groups/">Mihomo Wiki - include-all</a></div>
+</div>
+
+<div class="card y">
+    <strong>⚠️ 5. use 与 include-all 冗余</strong> — <strong>需修正</strong><br>
+    <code>include-all</code> 已包含 proxy-providers 节点，<code>use</code> 字段多余。但注意：<code>include-all-providers</code> 会使 <code>use</code> 失效（二者二选一）。
+    <div class="src">来源：<a href="https://wiki.metacubex.one/config/proxy-groups/">Mihomo Wiki</a></div>
+</div>
+
+<div class="card r">
+    <strong>🔴 6. health-check 只测试 proxies 字段！</strong> — <strong>关键修正</strong><br>
+    Mihomo 官方明确警告：<strong>健康检查的 url 仅对 proxies 字段中的节点有效</strong>。通过 use/include-all-providers 引入的节点不会被健康检查。<br><br>
+    <pre><code><span style="color:var(--red)"># 原方案（有问题）：</span>
+<span style="color:var(--red)">YouTube:</span>
+<span style="color:var(--red)">  type: url-test</span>
+<span style="color:var(--red)">  use: [IKUU, 三元]  ← 这些节点不会被健康检查！</span>
+
+<span style="color:var(--green)"># 修正后：</span>
+<span style="color:var(--green)">YouTube:</span>
+<span style="color:var(--green)">  type: url-test</span>
+<span style="color:var(--green)">  include-all: true   ← 引入所有节点用于测速</span>
+<span style="color:var(--green)">  proxies: [所有-自动, 香港-自动] ← 手动备选也会被检查</span></code></pre>
+    <div class="src">来源：<a href="https://wiki.metacubex.one/config/proxy-groups/url-test/">Mihomo Wiki</a>，url 字段说明</div>
+</div>
+
+<div class="card g">
+    <strong>✅ 7. tolerance 和 interval 语法</strong> — <strong>正确</strong><br>
+    tolerance 单位 ms，interval 单位秒。纯数字无后缀。
+    <div class="src">来源：<a href="https://wiki.metacubex.one/config/proxy-groups/url-test/">Mihomo Wiki - url-test</a></div>
+</div>
+
+<div class="card g">
+    <strong>✅ 8. fallback 的 url 和 interval</strong> — <strong>正确</strong><br>
+    fallback 支持健康检查，语法与 url-test 相同。
+    <div class="src">来源：<a href="https://wiki.metacubex.one/config/proxy-groups/fallback/">Mihomo Wiki - fallback</a></div>
+</div>
+
+<div class="card y">
+    <strong>⚠️ 9. OpenClash LuCI 可能覆盖 YAML 设置</strong><br>
+    LuCI 会覆盖：<code>url</code>、<code>interval</code>、<code>tolerance</code>、smart-conversion。<strong>不会覆盖</strong>：<code>proxies</code>、<code>include-all</code>（成员列表）。建议在 LuCI 中也确认健康检查设置。
+    <div class="src">来源：OpenClash 源码 yml_proxys_set.sh</div>
+</div>
+
+<div class="card g">
+    <strong>✅ 10. OpenClash 不会自动生成冲突分组</strong><br>
+    DIRECT / REJECT / GLOBAL 是 Mihomo 核心内置，不是 OpenClash 添加的。
+    <div class="src">来源：OpenClash 源码 yml_rules_change.sh</div>
+</div>
+
+<div class="card g">
+    <strong>✅ 11. url-test 无可用节点时</strong><br>
+    回退到 proxies 列表第一个可用节点。建议始终保留保底选项。
+    <div class="src">来源：<a href="https://wiki.metacubex.one/faq/">Mihomo FAQ</a></div>
+</div>
+
+<div class="card g">
+    <strong>✅ 12. 订阅更新不影响分组配置</strong><br>
+    订阅更新只合并节点到 proxy-providers，不修改 proxy-groups 结构。
+    <div class="src">来源：OpenClash 源码 yml_proxys_set.sh</div>
+</div>
+
+<div class="card y">
+    <strong>⚠️ 13. &auto 模板需显式声明 lazy</strong><br>
+    虽然默认 true，但显式声明更清晰、更易维护。
+</div>
+
+<!-- ==================== 修正汇总 ==================== -->
+<h2>二、修正汇总</h2>
+
+<table>
+    <tr><th>#</th><th>问题</th><th>严重度</th><th>修正方案</th></tr>
+    <tr><td>1</td><td>health-check 只测试 proxies 字段，use 节点不被检查</td><td style="color:var(--red)">🔴 关键</td><td>用 include-all: true 替代 use</td></tr>
+    <tr><td>2</td><td>use 与 include-all 冗余</td><td style="color:var(--yellow)">🟡 修正</td><td>删除 use 字段</td></tr>
+    <tr><td>3</td><td>&auto 模板缺少显式 lazy</td><td style="color:var(--yellow)">🟡 修正</td><td>加 lazy: true</td></tr>
+</table>
+
+<!-- ==================== 修正后模板 ==================== -->
+<h2>三、修正后的 YAML 模板</h2>
+
+<pre><code><span class="c"># ========================</span>
+<span class="c"># 策略组定义（修正版）</span>
+<span class="c"># ========================</span>
+
+<span class="c"># 自动选优模板</span>
+<span class="k">auto</span>: &amp;auto
+  <span class="k">type</span>: <span class="v">url-test</span>
+  <span class="k">include-all</span>: <span class="v">true</span>      <span class="c"># 引入所有节点（含 proxy-providers）</span>
+  <span class="k">url</span>: <span class="v">https://www.gstatic.com/generate_204</span>
+  <span class="k">interval</span>: <span class="v">300</span>
+  <span class="k">tolerance</span>: <span class="v">50</span>
+  <span class="k">lazy</span>: <span class="v">true</span>
+
+<span class="c"># 手动选择模板</span>
+<span class="k">manual</span>: &amp;manual
+  <span class="k">type</span>: <span class="v">select</span>
+  <span class="k">proxies</span>: [直连,所有-手动,所有-自动,香港-自动,台湾-自动,日本-自动,新加坡-自动,韩国-自动,美国-自动,其他-自动,拒绝]
+
+<span class="c"># 游戏低延迟模板</span>
+<span class="k">game</span>: &amp;game
+  <span class="k">type</span>: <span class="v">fallback</span>
+  <span class="k">include-all</span>: <span class="v">true</span>
+  <span class="k">url</span>: <span class="v">https://www.gstatic.com/generate_204</span>
+  <span class="k">interval</span>: <span class="v">300</span>
+  <span class="k">lazy</span>: <span class="v">true</span>
+
+proxy-groups:
+  <span class="c"># ===== 高频服务 =====</span>
+  - <span class="k">name</span>: <span class="n">YouTube</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [所有-自动, 香港-自动, 日本-自动, 美国-自动]
+
+  - <span class="k">name</span>: <span class="n">ChatGPT</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [香港-自动, 日本-自动, 新加坡-自动, 美国-自动]
+
+  - <span class="k">name</span>: <span class="n">Claude</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [日本-自动, 美国-自动, 香港-自动]
+
+  - <span class="k">name</span>: <span class="n">GitHub</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [所有-自动, 香港-自动, 日本-自动]
+
+  - <span class="k">name</span>: <span class="n">Telegram</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [香港-自动, 日本-自动, 新加坡-自动]
+
+  - <span class="k">name</span>: <span class="n">Google</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [新加坡-自动, 香港-自动, 日本-自动, 美国-自动]
+
+  - <span class="k">name</span>: <span class="n">Twitter(X)</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [香港-自动, 日本-自动, 新加坡-自动]
+
+  - <span class="k">name</span>: <span class="n">Meta AI</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [香港-自动, 日本-自动, 新加坡-自动]
+
+  - <span class="k">name</span>: <span class="n">Perplexity</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [新加坡-自动, 香港-自动, 日本-自动]
+
+  - <span class="k">name</span>: <span class="n">Copilot</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [香港-自动, 日本-自动, 美国-自动]
+
+  - <span class="k">name</span>: <span class="n">Gemini</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [新加坡-自动, 香港-自动, 日本-自动]
+
+  <span class="c"># ===== 媒体流 =====</span>
+  - <span class="k">name</span>: <span class="n">Netflix</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [香港-自动, 新加坡-自动, 台湾-自动, 日本-自动, 美国-自动]
+
+  - <span class="k">name</span>: <span class="n">Disney</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [新加坡-自动, 美国-自动, 香港-自动]
+
+  - <span class="k">name</span>: <span class="n">HBO</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [美国-自动, 新加坡-自动, 香港-自动]
+
+  - <span class="k">name</span>: <span class="n">Spotify</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [香港-自动, 新加坡-自动, 日本-自动]
+
+  - <span class="k">name</span>: <span class="n">TikTok</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [美国-自动, 新加坡-自动, 日本-自动]
+
+  - <span class="k">name</span>: <span class="n">Crunchyroll</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [美国-自动, 新加坡-自动, 日本-自动]
+
+  - <span class="k">name</span>: <span class="n">Reddit</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [美国-自动, 香港-自动, 日本-自动]
+
+  <span class="c"># ===== 工具/商务 =====</span>
+  - <span class="k">name</span>: <span class="n">Microsoft</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [香港-自动, 日本-自动, 美国-自动]
+
+  - <span class="k">name</span>: <span class="n">Apple</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [香港-自动, 日本-自动, 新加坡-自动, 美国-自动]
+
+  - <span class="k">name</span>: <span class="n">Amazon</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [美国-自动, 日本-自动, 香港-自动]
+
+  - <span class="k">name</span>: <span class="n">Nvidia</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [美国-自动, 香港-自动, 日本-自动]
+
+  - <span class="k">name</span>: <span class="n">WhatsApp</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [香港-自动, 新加坡-自动, 日本-自动]
+
+  - <span class="k">name</span>: <span class="n">Facebook</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [香港-自动, 新加坡-自动, 日本-自动]
+
+  - <span class="k">name</span>: <span class="n">Test</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [所有-自动, 香港-自动, 日本-自动]
+
+  <span class="c"># ===== 游戏（低延迟故障转移）=====</span>
+  - <span class="k">name</span>: <span class="n">Game</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*game</span>
+    <span class="k">proxies</span>: [香港-自动, 日本-自动, 韩国-自动, 台湾-自动, 直连]
+
+  - <span class="k">name</span>: <span class="n">Steam</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*game</span>
+    <span class="k">proxies</span>: [香港-自动, 日本-自动, 美国-自动, 直连]
+
+  - <span class="k">name</span>: <span class="n">Crypto</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*auto</span>
+    <span class="k">proxies</span>: [香港-自动, 日本-自动, 新加坡-自动, 美国-自动]
+
+  <span class="c"># ===== 基础分组 =====</span>
+  - <span class="k">name</span>: <span class="n">国外</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*manual</span>
+  - <span class="k">name</span>: <span class="n">国内</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*manual</span>
+  - <span class="k">name</span>: <span class="n">其他</span>
+    <span class="k">&lt;&lt;</span>: <span class="v">*manual</span>
+
+  - <span class="k">name</span>: <span class="n">所有-手动</span>
+    <span class="k">type</span>: <span class="v">select</span>
+    <span class="k">include-all</span>: <span class="v">true</span>
+    <span class="k">filter</span>: <span class="v">"^((?!(直连|拒绝)).)*$"</span>
+  - <span class="k">name</span>: <span class="n">所有-自动</span>
+    <span class="k">type</span>: <span class="v">url-test</span>
+    <span class="k">include-all</span>: <span class="v">true</span>
+    <span class="k">tolerance</span>: <span class="v">50</span>
+    <span class="k">interval</span>: <span class="v">300</span>
+    <span class="k">lazy</span>: <span class="v">true</span>
+    <span class="k">filter</span>: <span class="v">"^((?!(直连|拒绝)).)*$"</span>
+  - <span class="k">name</span>: <span class="n">香港-自动</span>
+    <span class="k">type</span>: <span class="v">url-test</span>
+    <span class="k">include-all</span>: <span class="v">true</span>
+    <span class="k">tolerance</span>: <span class="v">50</span>
+    <span class="k">interval</span>: <span class="v">300</span>
+    <span class="k">lazy</span>: <span class="v">true</span>
+    <span class="k">filter</span>: <span class="v">"(?=.*(广港|香港|HK|Hong Kong|🇭🇰|HongKong)).*$"</span>
+  <span class="c"># ... 其他地区分组同理保持不变 ...</span></code></pre>
+
+<!-- ==================== 关键修正说明 ==================== -->
+<h2>四、关键修正说明</h2>
+
+<div class="card b">
+    <span class="badge b">💡 核心变化</span><br><br>
+    <table>
+        <tr><th>字段</th><th>原方案</th><th>修正后</th><th>原因</th></tr>
+        <tr><td><code>use</code></td><td>[IKUU, 三元]</td><td style="color:var(--red)"><strong>删除</strong></td><td>与 include-all 冗余</td></tr>
+        <tr><td><code>include-all</code></td><td>❌ 未使用</td><td style="color:var(--green)"><strong>true</strong></td><td>引入所有节点 + 支持健康检查</td></tr>
+        <tr><td><code>lazy</code></td><td>未声明</td><td style="color:var(--green)"><strong>true</strong></td><td>显式声明，减少不必要测速</td></tr>
+    </table>
+</div>
+
+<div class="card y">
+    <span class="badge y">📝 OpenClash LuCI 注意</span><br><br>
+    <p>修改 YAML 后，到 <strong>LuCI → OpenClash → 设置</strong> 检查：</p>
+    <ul style="padding-left:20px;margin-top:8px">
+        <li>健康检查 URL 是否被 LuCI 覆盖（应为 <code>https://www.gstatic.com/generate_204</code>）</li>
+        <li>检查间隔是否正确（300 秒）</li>
+        <li>"智能分组转换"是否干扰了 url-test 类型</li>
+    </ul>
+</div>
+
+<div class="card g">
+    <span class="badge g">✅ 验证方法</span><br><br>
+    <p>修改后在 <strong>OpenClash → 代理</strong> 页面检查：</p>
+    <ol style="padding-left:20px;margin-top:8px">
+        <li>每个自动分组下方应显示延迟数字（如 "50ms"），说明健康检查在工作</li>
+        <li>如果显示 "超时" 或空白，说明健康检查 URL 有问题</li>
+        <li>手动切换节点后等 5 分钟，看是否会自动切回（lazy=true 的行为）</li>
+    </ol>
+</div>
+
+<footer>
+    <p>OECT 代理分组方案审查报告 · Generated by Reasonix · 2026-08-30</p>
+    <p>参考：<a href="https://wiki.metacubex.one/config/proxy-groups/" style="color:var(--accent)">Mihomo Wiki</a> · <a href="https://github.com/vernesong/OpenClash" style="color:var(--accent)">OpenClash GitHub</a></p>
+</footer>
+
+</div>
+</body>
+</html>

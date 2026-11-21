@@ -1,0 +1,10 @@
+# 镜像接口：每行 "<输出文件名> <URL>"，# 开头是注释
+#
+# 与 sources.txt 的区别：镜像**不参与合并**，原样落到独立文件。
+# 适合"自带 spider 的整套配置"，避免和主配置的 spider 打架导致站点播放失败。
+#
+# Inliang/tvbox 主配置：126 站点 + 10 个直播分组（直播源每 6 小时自动测速排序）
+inliang.json https://raw.githubusercontent.com/Inliang/tvbox/main/zijian.json
+#
+# 扩展版（509 站点，首次加载慢），需要时放开下面这行：
+# inliang-full.json https://raw.githubusercontent.com/Inliang/tvbox/main/zijian-full.json

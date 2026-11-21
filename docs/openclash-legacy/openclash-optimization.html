@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OECT OpenClash 优化方案</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card: #161b22;
+            --border: #30363d;
+            --text: #e6edf3;
+            --muted: #8b949e;
+            --accent: #58a6ff;
+            --green: #3fb950;
+            --red: #f85149;
+            --yellow: #d29922;
+            --orange: #db6d28;
+            --code-bg: #1c2128;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        
+        h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--accent), var(--green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle { color: var(--muted); margin-bottom: 30px; font-size: 14px; }
+        
+        h2 {
+            font-size: 20px;
+            margin: 30px 0 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+            color: var(--accent);
+        }
+        h3 {
+            font-size: 16px;
+            margin: 20px 0 10px;
+            color: var(--text);
+        }
+        
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        .card.critical { border-left: 4px solid var(--red); }
+        .card.warning { border-left: 4px solid var(--yellow); }
+        .card.info { border-left: 4px solid var(--accent); }
+        .card.success { border-left: 4px solid var(--green); }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 6px;
+        }
+        .badge.critical { background: rgba(248,81,73,0.15); color: var(--red); }
+        .badge.warning { background: rgba(210,153,34,0.15); color: var(--yellow); }
+        .badge.info { background: rgba(88,166,255,0.15); color: var(--accent); }
+        .badge.success { background: rgba(63,185,80,0.15); color: var(--green); }
+        
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 10px 0;
+        }
+        code {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+        }
+        .inline-code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        
+        .comment { color: #8b949e; }
+        .new { color: var(--green); }
+        .change { color: var(--yellow); }
+        .key { color: #7ee787; }
+        .value { color: #a5d6ff; }
+        .section-tag { color: var(--red); }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            text-align: left;
+            font-size: 14px;
+        }
+        th {
+            background: var(--code-bg);
+            font-weight: 600;
+            color: var(--accent);
+        }
+        tr:hover { background: rgba(88,166,255,0.05); }
+        
+        .step {
+            display: flex;
+            gap: 15px;
+            margin: 15px 0;
+            padding: 15px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .step-num {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            background: var(--accent);
+            color: var(--bg);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        .step-content { flex: 1; }
+        .step-content strong { color: var(--accent); }
+        
+        .checklist { list-style: none; padding: 0; }
+        .checklist li {
+            padding: 8px 0;
+            padding-left: 28px;
+            position: relative;
+            border-bottom: 1px solid var(--border);
+        }
+        .checklist li:last-child { border-bottom: none; }
+        .checklist li::before {
+            content: '☐';
+            position: absolute;
+            left: 0;
+            color: var(--muted);
+        }
+        
+        .diff-added {
+            background: rgba(63,185,80,0.1);
+            border-left: 3px solid var(--green);
+            padding: 4px 10px;
+            margin: 2px 0;
+        }
+        .diff-removed {
+            background: rgba(248,81,73,0.1);
+            border-left: 3px solid var(--red);
+            padding: 4px 10px;
+            margin: 2px 0;
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+        
+        .toc {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .toc a {
+            color: var(--accent);
+            text-decoration: none;
+            display: block;
+            padding: 4px 0;
+        }
+        .toc a:hover { text-decoration: underline; }
+        .toc .toc-sub { padding-left: 20px; }
+        
+        .tip {
+            background: rgba(88,166,255,0.08);
+            border: 1px solid rgba(88,166,255,0.3);
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .tip::before {
+            content: '💡 ';
+        }
+        
+        .danger {
+            background: rgba(248,81,73,0.08);
+            border: 1px solid rgba(248,81,73,0.3);
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .danger::before {
+            content: '⚠️ ';
+        }
+        
+        footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 13px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+<h1>🛡️ OECT OpenClash 优化方案</h1>
+<p class="subtitle">基于 iStoreOS 24.10.5 + Mihomo Meta · 2026-08-30 · Reasonix</p>
+
+<!-- ==================== 目录 ==================== -->
+<div class="toc">
+    <strong>📑 目录</strong>
+    <a href="#audit">一、配置审计结果</a>
+    <a href="#dns" class="toc-sub">1.1 DNS 配置差距</a>
+    <a href="#compat" class="toc-sub">1.2 旁路由兼容性</a>
+    <a href="#perf" class="toc-sub">1.3 性能配置</a>
+    <a href="#ok" class="toc-sub">1.4 已正确配置</a>
+    <a href="#plan">二、优化计划</a>
+    <a href="#phase1" class="toc-sub">Phase 1: DNS 优化</a>
+    <a href="#phase2" class="toc-sub">Phase 2: 旁路由兼容</a>
+    <a href="#phase3" class="toc-sub">Phase 3: 性能微调</a>
+    <a href="#fullconfig">三、完整 YAML 参考</a>
+    <a href="#verify">四、修改后验证</a>
+    <a href="#backup">五、备份与回滚</a>
+</div>
+
+<!-- ==================== 一、审计 ==================== -->
+<h2 id="audit">一、配置审计结果</h2>
+<p>以下基于 oect 实际运行配置与 Mihomo/OpenClash 官方文档最佳实践的对比。</p>
+
+<h3 id="dns">1.1 DNS 配置差距</h3>
+
+<div class="card critical">
+    <span class="badge critical">🔴 严重</span> <strong>缺少 DNS fallback</strong><br><br>
+    <p>当前只有国内 DNS <code>223.5.5.5</code>，没有配置国外 DNS fallback。</p>
+    <p><strong>后果</strong>：国外域名（YouTube、Google 等）的 DNS 查询也走国内 DNS，可能被污染或返回不可达的 IP。</p>
+    <table>
+        <tr><th>配置项</th><th>当前值</th><th>推荐值</th></tr>
+        <tr><td><code>nameserver</code></td><td>223.5.5.5（明文）</td><td>DoH 加密 + 多个</td></tr>
+        <tr><td><code>fallback</code></td><td>❌ 未配置</td><td>tls://8.8.4.4 + tls://1.1.1.1</td></tr>
+        <tr><td><code>fallback-filter</code></td><td>❌ 未配置</td><td>geoip: true, geoip-code: CN</td></tr>
+        <tr><td><code>default-nameserver</code></td><td>❌ 未配置</td><td>223.5.5.5 + 119.29.29.29</td></tr>
+    </table>
+</div>
+
+<div class="card warning">
+    <span class="badge warning">⚠️ 注意</span> <strong>fake-ip-range 非标准</strong><br><br>
+    <table>
+        <tr><th>配置项</th><th>当前值</th><th>推荐值</th></tr>
+        <tr><td><code>fake-ip-range</code></td><td>198.20.0.1/16</td><td><strong>198.18.0.1/16</strong></td></tr>
+    </table>
+    <p style="margin-top:8px">虽然能工作，但 198.18.0.0/15 是 IANA 为私网保留的标准范围，部分客户端可能对 198.20.x.x 不兼容。</p>
+</div>
+
+<div class="card warning">
+    <span class="badge warning">⚠️ 注意</span> <strong>fake-ip-filter 不完整</strong><br><br>
+    <p>当前只有 <code>.lan</code>、<code>.local</code>、<code>geosite:cn</code> 和几个自定义域名。建议补全常见本地设备域名（路由器、智能家居等）。</p>
+</div>
+
+<h3 id="compat">1.2 旁路由兼容性</h3>
+
+<div class="card critical">
+    <span class="badge critical">🔴 关键</span> <strong>bypass_gateway_compatible 可能未开启</strong><br><br>
+    <p>这是 OpenClash 专门为旁路由场景设计的选项。不开的话，其他设备通过 oect 转发的流量可能无法被正确拦截到 Clash 核心。</p>
+    <p><strong>这很可能就是你电脑上不了 YouTube 的直接原因。</strong></p>
+</div>
+
+<div class="card warning">
+    <span class="badge warning">⚠️ 注意</span> <strong>IPv6 状态未确认</strong><br><br>
+    <p>旁路由模式下<strong>不推荐开启 IPv6</strong>，可能导致 DNS 泄漏（IPv6 DNS 查询不经过 Clash）。除非主路由给 oect 分配了 IPv6 前缀并正确配置了 PD。</p>
+</div>
+
+<h3 id="perf">1.3 性能配置</h3>
+
+<table>
+    <tr><th>配置项</th><th>当前值</th><th>推荐值</th><th>说明</th></tr>
+    <tr><td><code>tcp-concurrent</code></td><td>未启用</td><td><code>true</code></td><td>并行 TCP 连接，提升握手速度</td></tr>
+    <tr><td><code>find-process-mode</code></td><td>未确认</td><td><code>false</code></td><td>路由器上关闭进程查找，节省 CPU</td></tr>
+    <tr><td><code>unified-delay</code></td><td>未确认</td><td><code>true</code></td><td>统一延迟计算，选节点更准</td></tr>
+    <tr><td><code>global-client-fingerprint</code></td><td>—</td><td>已废弃</td><td>改用 per-proxy 的 client-fingerprint</td></tr>
+</table>
+
+<h3 id="ok">1.4 已正确配置 ✅</h3>
+
+<div class="card success">
+    <span class="badge success">✅ 正确</span>
+    <table>
+        <tr><th>配置项</th><th>值</th></tr>
+        <tr><td>china_ip_route</td><td>已启用（国内 IP 直连）</td></tr>
+        <tr><td>QUIC 阻断</td><td>已启用（UDP/443 reject）</td></tr>
+        <tr><td>rule-providers 格式</td><td>.mrs 二进制（最优）</td></tr>
+        <tr><td>GeoIP/GeoSite 自动更新</td><td>cron 每天 04:00</td></tr>
+        <tr><td>sniffer</td><td>OpenClash 已强制开启</td></tr>
+        <tr><td>store-fake-ip</td><td>OpenClash 已强制开启</td></tr>
+        <tr><td>auto-redirect</td><td>false（旁路由模式正确）</td></tr>
+    </table>
+</div>
+
+<!-- ==================== 二、优化计划 ==================== -->
+<h2 id="plan">二、优化计划</h2>
+
+<div class="danger">
+    <strong>修改前必须备份！</strong> LuCI → OpenClash → 备份/恢复 → 导出配置。<br>
+    修改后需重启 OpenClash 核心，可能短暂断网几秒钟。
+</div>
+
+<h3 id="phase1">Phase 1: DNS 优化（最关键）</h3>
+
+<p>在 YAML 的 <code class="inline-code">dns:</code> 段中修改：</p>
+
+<pre><code><span class="key">dns</span>:
+  <span class="key">enable</span>: <span class="value">true</span>
+  <span class="key">listen</span>: <span class="value">0.0.0.0:7874</span>
+  <span class="key">ipv6</span>: <span class="change">false</span>                    <span class="comment"># ← 改：旁路由关闭 IPv6</span>
+  <span class="key">enhanced-mode</span>: <span class="value">fake-ip</span>
+  <span class="key">fake-ip-range</span>: <span class="change">198.18.0.1/16</span>   <span class="comment"># ← 改：标准范围（原来是 198.20.0.1/16）</span>
+
+  <span class="comment"># ← 新增：默认 DNS（仅解析 DNS 服务器域名，必须纯 IP）</span>
+  <span class="key">default-nameserver</span>:
+    - <span class="new">223.5.5.5</span>
+    - <span class="new">119.29.29.29</span>
+
+  <span class="comment"># ← 修改：国内 DNS（改用 DoH 加密）</span>
+  <span class="key">nameserver</span>:
+    - <span class="change">https://doh.pub/dns-query</span>
+    - <span class="change">https://dns.alidns.com/dns-query</span>
+    - <span class="value">223.5.5.5</span>
+
+  <span class="comment"># ← 新增：国外 DNS（解析国外域名必须有）</span>
+  <span class="key">fallback</span>:
+    - <span class="new">tls://8.8.4.4</span>
+    - <span class="new">tls://1.1.1.1</span>
+    - <span class="new">https://dns.google/dns-query</span>
+    - <span class="new">https://cloudflare-dns.com/dns-query</span>
+
+  <span class="comment"># ← 新增：Fallback 过滤（国内IP走nameserver，国外走fallback）</span>
+  <span class="key">fallback-filter</span>:
+    <span class="key">geoip</span>: <span class="new">true</span>
+    <span class="key">geoip-code</span>: <span class="new">CN</span>
+    <span class="key">geosite</span>:
+      - <span class="new">gfw</span>
+    <span class="key">ipcidr</span>:
+      - <span class="new">240.0.0.0/4</span>
+
+  <span class="key">fake-ip-filter-mode</span>: <span class="value">blacklist</span>
+  <span class="key">fake-ip-filter</span>:
+    - <span class="value">+.lan</span>
+    - <span class="value">+.local</span>
+    - <span class="value">+.localhost</span>
+    - <span class="value">geosite:cn</span>
+    <span class="comment"># 你原有的自定义域名</span>
+    - <span class="value">+.km688.ink</span>
+    - <span class="value">+.onesubv.site</span>
+    - <span class="value">+.oneyyds.online</span>
+    - <span class="value">+.fengyyds.site</span>
+    - <span class="value">+.onemg.top</span>
+    - <span class="value">+.chybinc.com</span>
+    - <span class="value">+.invitevp.com</span>
+    - <span class="value">+.vp2.us</span>
+    <span class="comment"># ← 新增：常见本地设备</span>
+    - <span class="new">+.mi.com</span>
+    - <span class="new">+.xiaomi.com</span>
+    - <span class="new">+.router.asus.com</span>
+    - <span class="new">+.tplinkwifi.net</span>
+    - <span class="new">+.speedtest.net</span>
+    - <span class="new">+.msftconnecttest.com</span>
+    - <span class="new">+.msftncsi.com</span></code></pre>
+
+<h3 id="phase2">Phase 2: 旁路由兼容 + 性能</h3>
+
+<p>在 YAML 中与 <code class="inline-code">mode:</code> 同级的位置添加：</p>
+
+<pre><code><span class="comment"># ← 新增：性能优化</span>
+<span class="key">find-process-mode</span>: <span class="new">false</span>    <span class="comment"># 路由器关闭进程查找，省 CPU</span>
+<span class="key">tcp-concurrent</span>: <span class="new">true</span>        <span class="comment"># 并行 TCP 连接，提速</span>
+<span class="key">unified-delay</span>: <span class="new">true</span>         <span class="comment"># 统一延迟计算</span></code></pre>
+
+<p><strong>LuCI 界面设置（非 YAML）：</strong></p>
+<table>
+    <tr><th>设置项</th><th>位置</th><th>值</th></tr>
+    <tr><td>bypass_gateway_compatible</td><td>OpenClash → 设置 → 模式设置</td><td><strong>1（开启）</strong></td></tr>
+    <tr><td>intranet_allowed</td><td>OpenClash → 设置 → 外部控制</td><td>1</td></tr>
+    <tr><td>IPv6</td><td>OpenClash → 设置 → DNS 设置</td><td><strong>关闭</strong>（除非主路由有 PD）</td></tr>
+</table>
+
+<!-- ==================== 三、完整 YAML ==================== -->
+<h2 id="fullconfig">三、完整 DNS 段 YAML 参考</h2>
+
+<p>直接复制替换你 YAML 中的整个 <code class="inline-code">dns:</code> 段：</p>
+
+<pre><code><span class="section-tag"># ========================</span>
+<span class="section-tag"># DNS 设置</span>
+<span class="section-tag"># ========================</span>
+<span class="key">dns</span>:
+  <span class="key">enable</span>: <span class="value">true</span>
+  <span class="key">listen</span>: <span class="value">0.0.0.0:7874</span>
+  <span class="key">ipv6</span>: <span class="value">false</span>
+  <span class="key">enhanced-mode</span>: <span class="value">fake-ip</span>
+  <span class="key">fake-ip-range</span>: <span class="value">198.18.0.1/16</span>
+  <span class="key">default-nameserver</span>:
+    - <span class="value">223.5.5.5</span>
+    - <span class="value">119.29.29.29</span>
+  <span class="key">nameserver</span>:
+    - <span class="value">https://doh.pub/dns-query</span>
+    - <span class="value">https://dns.alidns.com/dns-query</span>
+    - <span class="value">223.5.5.5</span>
+  <span class="key">fallback</span>:
+    - <span class="value">tls://8.8.4.4</span>
+    - <span class="value">tls://1.1.1.1</span>
+    - <span class="value">https://dns.google/dns-query</span>
+    - <span class="value">https://cloudflare-dns.com/dns-query</span>
+  <span class="key">fallback-filter</span>:
+    <span class="key">geoip</span>: <span class="value">true</span>
+    <span class="key">geoip-code</span>: <span class="value">CN</span>
+    <span class="key">geosite</span>:
+      - <span class="value">gfw</span>
+    <span class="key">ipcidr</span>:
+      - <span class="value">240.0.0.0/4</span>
+  <span class="key">fake-ip-filter-mode</span>: <span class="value">blacklist</span>
+  <span class="key">fake-ip-filter</span>:
+    - <span class="value">+.lan</span>
+    - <span class="value">+.local</span>
+    - <span class="value">+.localhost</span>
+    - <span class="value">geosite:cn</span>
+    - <span class="value">+.km688.ink</span>
+    - <span class="value">+.onesubv.site</span>
+    - <span class="value">+.oneyyds.online</span>
+    - <span class="value">+.fengyyds.site</span>
+    - <span class="value">+.onemg.top</span>
+    - <span class="value">+.chybinc.com</span>
+    - <span class="value">+.invitevp.com</span>
+    - <span class="value">+.vp2.us</span>
+    - <span class="value">+.mi.com</span>
+    - <span class="value">+.xiaomi.com</span>
+    - <span class="value">+.router.asus.com</span>
+    - <span class="value">+.tplinkwifi.net</span>
+    - <span class="value">+.speedtest.net</span>
+    - <span class="value">+.msftconnecttest.com</span>
+    - <span class="value">+.msftncsi.com</span>
+  <span class="key">nameserver-policy</span>:
+    <span class="key">"+.github.com"</span>: <span class="value">https://dns.google/dns-query</span>
+    <span class="key">"+.googleapis.com"</span>: <span class="value">https://dns.google/dns-query</span>
+    <span class="key">"+.youtube.com"</span>: <span class="value">https://dns.google/dns-query</span></code></pre>
+
+<!-- ==================== 四、验证 ==================== -->
+<h2 id="verify">四、修改后验证清单</h2>
+
+<p>改完配置并重启 OpenClash 后，按顺序验证：</p>
+
+<div class="step">
+    <div class="step-num">1</div>
+    <div class="step-content">
+        <strong>验证 DNS 解析</strong><br>
+        在你的电脑上执行：
+        <pre><code>nslookup youtube.com 192.168.31.2</code></pre>
+        预期结果：返回 <code class="inline-code">198.18.x.x</code> 开头的假 IP ✅<br>
+        如果返回 <code class="inline-code">142.250.x.x</code>（真实 IP）→ DNS 没走 oect ❌
+    </div>
+</div>
+
+<div class="step">
+    <div class="step-num">2</div>
+    <div class="step-content">
+        <strong>验证 Fallback DNS</strong><br>
+        <pre><code>nslookup google.com 192.168.31.2</code></pre>
+        预期结果：返回 <code class="inline-code">198.18.x.x</code> 假 IP ✅<br>
+        如果报错或超时 → fallback DNS 未生效
+    </div>
+</div>
+
+<div class="step">
+    <div class="step-num">3</div>
+    <div class="step-content">
+        <strong>测试 YouTube 访问</strong><br>
+        浏览器打开 <code class="inline-code">https://www.youtube.com</code><br>
+        预期：正常加载 ✅
+    </div>
+</div>
+
+<div class="step">
+    <div class="step-num">4</div>
+    <div class="step-content">
+        <strong>测试代理延迟</strong><br>
+        LuCI → OpenClash → 代理延迟测试<br>
+        预期：主要代理组延迟 &lt; 200ms ✅
+    </div>
+</div>
+
+<div class="step">
+    <div class="step-num">5</div>
+    <div class="step-content">
+        <strong>检查 Clash 日志</strong><br>
+        <pre><code>ssh oect "logread | grep -i clash | tail -20"</code></pre>
+        预期：无 ERROR 级别日志 ✅
+    </div>
+</div>
+
+<!-- ==================== 五、备份 ==================== -->
+<h2 id="backup">五、备份与回滚</h2>
+
+<div class="card info">
+    <span class="badge info">📋 备份</span>
+    <p>修改前在 LuCI 中导出：OpenClash → 备份/恢复 → 导出配置</p>
+</div>
+
+<div class="card info">
+    <span class="badge info">↩️ 回滚</span>
+    <p>如果改出问题：</p>
+    <ol style="padding-left:20px; margin-top:8px">
+        <li>SSH 到 oect：<code class="inline-code">ssh oect</code></li>
+        <li>停止 OpenClash：<code class="inline-code">/etc/init.d/openclash stop</code></li>
+        <li>恢复备份：<code class="inline-code">cp /root/openclash_backup.yaml /etc/openclash/config/*.yaml</code></li>
+        <li>重启：<code class="inline-code">/etc/init.d/openclash start</code></li>
+    </ol>
+</div>
+
+<div class="card warning" style="margin-top:20px">
+    <span class="badge warning">📝 注意</span>
+    <strong>重启 OpenClash 只影响代理功能</strong>（约 3-5 秒），不影响 Samba、aria2 等其他服务。如果重启后无法上网，等 30 秒通常会自动恢复（OpenClash 有 watchdog）。
+</div>
+
+<!-- ==================== Footer ==================== -->
+<footer>
+    <p>OECT OpenClash 优化方案 · Generated by Reasonix · 2026-08-30</p>
+    <p>参考文档：<a href="https://wiki.metacubex.one/config/" style="color:var(--accent)">Mihomo Wiki</a> · <a href="https://github.com/vernesong/OpenClash" style="color:var(--accent)">OpenClash GitHub</a></p>
+</footer>
+
+</div>
+</body>
+</html>

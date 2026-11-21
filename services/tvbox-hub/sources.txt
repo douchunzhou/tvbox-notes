@@ -1,0 +1,23 @@
+# TVBox 上游接口（一行一个，# 注释）
+#
+# ⚠️ 合并注意：不同源的 spider(jar) 版本不同，混用会导致部分站点无法播放。
+#    主源策略：优先用已经聚合好的整包，而不是把各家单仓强行拼一起。
+#
+# 主源：影视仓配置聚合仓（GitHub Actions 每日自动更新，内部已合并肥猫/饭太硬/王二小/老刘备/小马/讴歌/4K小盒子等）
+https://raw.githubusercontent.com/Lightconer/tvbox-ysc-config/main/output/%E5%8D%95%E4%BB%93%E8%81%9A%E5%90%88.json
+
+# ---------- 补源（前缀 !http-only）----------
+# 只取该源里 api 以 http 开头的独立站点（不依赖全局 spider），
+# 因此不会破坏主源的 spider 一致性；补进来的站点按名字排序追加在末尾。
+# Inliang/tvbox 主配置：126 站点，其中 80 个是独立 http 接口（去重后约新增 60 个）
+!http-only https://raw.githubusercontent.com/Inliang/tvbox/main/zijian.json
+
+# ---------- 备用源（想切换时：把下面某一行的 # 去掉，并注释掉主源，再跑 python3 sync.py）----------
+# 高原(Gao) 0821 —— 86 站点/16 直播，饭太硬系
+# https://raw.githubusercontent.com/gaotianliuyun/gao/master/0821.json
+# 肥猫单仓 —— 40 站点
+# https://raw.githubusercontent.com/Lightconer/tvbox-ysc-config/main/output/feimao.json
+# 王二小 —— 40 站点
+# https://raw.githubusercontent.com/Lightconer/tvbox-ysc-config/main/output/wangerxiao.json
+# 讴歌(欧歌)
+# https://raw.githubusercontent.com/Lightconer/tvbox-ysc-config/main/output/ouge.json

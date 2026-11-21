@@ -1,0 +1,19 @@
+# ===== 绝不入库：含明文凭据 / 私人信息 =====
+
+# OpenBox 配置快照：含 67 个节点的 server / port / password / uuid 明文
+backups/
+
+# 安装包等大文件
+downloads/
+
+# 原始采集数据：含 MAC 地址、磁盘 UUID、完整包清单
+docs/oect/*/raw/
+
+# 自家户型图（私人平面布局）
+services/homeassistant/floorplan/
+
+# ===== 临时文件 =====
+.tmp/
+*.bak.*
+*.log
+*.tmp

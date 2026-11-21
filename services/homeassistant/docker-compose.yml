@@ -1,0 +1,40 @@
+# Home Assistant Container — oect (RK3566 / iStoreOS)
+# 部署目录：/mnt/data_sda1/services/homeassistant
+# 参考：官方模板 + 社区实践（见 docs/homeassistant/PLAN.md §11）
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    restart: unless-stopped
+    # host 网络：mDNS/SSDP 自动发现必需
+    network_mode: host
+    # 访问 USB 设备（Zigbee/Z-Wave 棒、蓝牙 dongle）需要
+    privileged: true
+    # HA 关闭时要把数据库刷盘，默认 10s 容易被 SIGKILL 导致 SQLite 损坏
+    stop_grace_period: 60s
+    # 宿主无 swap，放宽到 1.8G 防首次启动/装集成时被 OOM 杀
+    mem_limit: 1800m
+    environment:
+      # 宿主 /etc/localtime 是悬空软链（指向已不存在的路径），所以只用 TZ；
+      # HA 镜像自带 tzdata，TZ 足够。若时间不对改成 TZ=CST-8
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./config:/config
+      - /run/dbus:/run/dbus:ro
+    # ⚠️ 插上 Zigbee/Z-Wave 棒后，用 devices 映射，不要用 volumes 挂 /dev/serial/by-id！
+    #    原因：by-id 下是相对软链（../ttyUSB0），只挂目录会导致容器内链接悬空。
+    #    正确写法（先用 ls -l /dev/serial/by-id/ 拿到真实路径）：
+    # devices:
+    #   - /dev/serial/by-id/usb-ITead_Sonoff_Zigbee_3.0_USB_Dongle_Plus_xxxx-if00-port0:/dev/ttyUSB0
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      # 镜像里不一定有 curl，用 python3（HA 必然自带）
+      test: ["CMD", "python3", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8123/manifest.json',timeout=5)"]
+      interval: 60s
+      timeout: 10s
+      retries: 5
+      start_period: 600s
